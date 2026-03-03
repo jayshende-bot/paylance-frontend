@@ -3,7 +3,7 @@ import { store } from '../store';
 import { updateAccessToken, logout } from '../store/slices/authSlice';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1',
+  baseURL: import.meta.env.VITE_API_URL || 'https://paylance-backend.vercel.app/api/v1',
   withCredentials: true, // sends httpOnly cookie (refresh token)
   headers: { 'Content-Type': 'application/json' },
 });
@@ -47,7 +47,7 @@ api.interceptors.response.use(
 
       try {
         const { data } = await axios.post(
-          `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1'}/auth/refresh`,
+          `${import.meta.env.VITE_API_URL || 'https://paylance-backend.vercel.app/api/v1'}/auth/refresh`,
           {},
           { withCredentials: true }
         );

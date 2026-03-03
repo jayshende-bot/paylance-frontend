@@ -20,7 +20,7 @@ export const useSocket = () => {
     // (React StrictMode double-invokes effects in dev — this prevents a duplicate)
     if (socket?.connected) return;
 
-    socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000', {
+    socket = io(import.meta.env.VITE_SOCKET_URL || 'https://paylance-backend.vercel.app', {
       auth: { token: accessToken },
       // Use default polling → websocket upgrade sequence.
       // Forcing 'websocket' alone causes "closed before established" in StrictMode
