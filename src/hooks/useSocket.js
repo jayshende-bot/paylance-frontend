@@ -1,0 +1,69 @@
+import { useEffect, useRef } from 'react';
+import { io } from 'socket.io-client';
+import { useDispatch } from 'react-redux';
+import { addNotification } from '../store/slices/notificationSlice';
+import { useSelector } from 'react-redux';
+import { selectAccessToken, selectIsAuthenticated } from '../store/slices/authSlice';
+import toast from 'react-hot-toast';
+
+let socket = null;
+
+export const useSocket = () => {
+  const dispatch = useDispatch();
+  const accessToken = useSelector(selectAccessToken);
+  const isAuthenticated = useSelector(selectIsAuthenticated);
+
+  useEffect(() => {
+    if (!isAuthenticated || !accessToken) return;
+
+    // Guard: don't create a second socket if one is already live
+    // (React StrictMode double-invokes effects in dev — this prevents a duplicate)
+    if (socket?.connected) return;
+
+    socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000', {
+      auth: { token: accessToken },
+      // Use default polling → websocket upgrade sequence.
+      // Forcing 'websocket' alone causes "closed before established" in StrictMode
+      // because disconnect() fires while the WS handshake is still in CONNECTING state.
+      transports: ['polling', 'websocket'],
+      upgrade: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 2000,
+    });
+
+    socket.on('connect', () => console.log('Socket connected'));
+    socket.on('connect_error', (err) => console.error('Socket error:', err.message));
+
+    // Real-time notification handler
+    socket.on('notification:new', (notification) => {
+      dispatch(addNotification(notification));
+      toast(notification.message, {
+        icon: notification.type.includes('payment') ? '💰' : '🔔',
+        duration: 5000,
+      });
+    });
+
+    // Payment events
+    socket.on('payment:funded', ({ milestoneId, amount }) => {
+      toast.success(`Escrow funded! $${amount} secured.`);
+    });
+
+    socket.on('payment:released', ({ amount }) => {
+      toast.success(`$${amount} released to your account!`);
+    });
+
+    socket.on('milestone:submitted', ({ title }) => {
+      toast(`Work submitted for: ${title}`, { icon: '📋' });
+    });
+
+    return () => {
+      socket?.disconnect();
+      socket = null;
+    };
+  }, [isAuthenticated, accessToken, dispatch]);
+
+  const joinContract = (contractId) => socket?.emit('join:contract', contractId);
+  const leaveContract = (contractId) => socket?.emit('leave:contract', contractId);
+
+  return { socket, joinContract, leaveContract };
+};
