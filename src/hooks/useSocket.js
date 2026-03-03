@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { io } from 'socket.io-client';
 import { useDispatch } from 'react-redux';
 import { addNotification } from '../store/slices/notificationSlice';
@@ -8,6 +8,10 @@ import toast from 'react-hot-toast';
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'https://paylance-backend.vercel.app';
 
+// Vercel serverless does not support persistent WebSocket connections.
+// Disable socket entirely when backend is on Vercel to avoid endless 404 polling.
+const SOCKET_ENABLED = !SOCKET_URL.includes('vercel.app');
+
 let socket = null;
 
 export const useSocket = () => {
@@ -16,17 +20,11 @@ export const useSocket = () => {
   const isAuthenticated = useSelector(selectIsAuthenticated);
 
   useEffect(() => {
-    if (!isAuthenticated || !accessToken) return;
-
-    // Guard: don't create a second socket if one is already live
-    // (React StrictMode double-invokes effects in dev — this prevents a duplicate)
+    if (!SOCKET_ENABLED || !isAuthenticated || !accessToken) return;
     if (socket?.connected) return;
 
     socket = io(SOCKET_URL, {
       auth: { token: accessToken },
-      // Use default polling → websocket upgrade sequence.
-      // Forcing 'websocket' alone causes "closed before established" in StrictMode
-      // because disconnect() fires while the WS handshake is still in CONNECTING state.
       transports: ['polling', 'websocket'],
       upgrade: true,
       reconnectionAttempts: 5,
@@ -36,7 +34,6 @@ export const useSocket = () => {
     socket.on('connect', () => console.log('Socket connected'));
     socket.on('connect_error', (err) => console.error('Socket error:', err.message));
 
-    // Real-time notification handler
     socket.on('notification:new', (notification) => {
       dispatch(addNotification(notification));
       toast(notification.message, {
@@ -45,8 +42,7 @@ export const useSocket = () => {
       });
     });
 
-    // Payment events
-    socket.on('payment:funded', ({ milestoneId, amount }) => {
+    socket.on('payment:funded', ({ amount }) => {
       toast.success(`Escrow funded! $${amount} secured.`);
     });
 
