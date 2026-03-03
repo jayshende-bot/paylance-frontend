@@ -6,6 +6,8 @@ import { useSelector } from 'react-redux';
 import { selectAccessToken, selectIsAuthenticated } from '../store/slices/authSlice';
 import toast from 'react-hot-toast';
 
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'https://paylance-backend.vercel.app';
+
 let socket = null;
 
 export const useSocket = () => {
@@ -20,7 +22,7 @@ export const useSocket = () => {
     // (React StrictMode double-invokes effects in dev — this prevents a duplicate)
     if (socket?.connected) return;
 
-    socket = io(import.meta.env.VITE_SOCKET_URL || 'https://paylance-backend.vercel.app', {
+    socket = io(SOCKET_URL, {
       auth: { token: accessToken },
       // Use default polling → websocket upgrade sequence.
       // Forcing 'websocket' alone causes "closed before established" in StrictMode
